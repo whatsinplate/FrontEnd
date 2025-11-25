@@ -1,10 +1,71 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart'; // Пакет для работы с камерой
+import 'processing_screen.dart'; // Экран загрузки
 
 class MainMenuScreen extends StatelessWidget {
   const MainMenuScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final ImagePicker picker = ImagePicker();
+
+    void showImageSourceActionSheet(BuildContext context) {
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: const Color(0xFFF0F8F0),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
+        ),
+        builder: (BuildContext ctx) {
+          return SafeArea(
+            child: Wrap(
+              children: <Widget>[
+                ListTile(
+                  leading: const Icon(Icons.camera_alt, color: Color(0xFF1B5E20)),
+                  title: const Text('Камера'),
+                  onTap: () async {
+                    Navigator.of(ctx).pop(); // Закрыть меню
+                    // Открыть камеру
+                    final XFile? photo = await picker.pickImage(source: ImageSource.camera);
+                    if (photo != null) {
+                      // Если фото сделано, идем на экран обработки
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => ProcessingScreen(imagePath: photo.path)),
+                      );
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library, color: Color(0xFF1B5E20)),
+                  title: const Text('Галерея'),
+                  onTap: () async {
+                    Navigator.of(ctx).pop(); // Закрыть меню
+                    // Открыть галерею
+                    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+                    if (image != null) {
+                      // Если фото выбрано, идем на экран обработки
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => ProcessingScreen(imagePath: image.path)),
+                      );
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.close, color: Colors.red),
+                  title: const Text('Отмена', style: TextStyle(color: Colors.red)),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                  },
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF0F8F0),
       body: SafeArea(
@@ -64,7 +125,10 @@ class MainMenuScreen extends StatelessWidget {
               
               // Кнопка "Распознать еду"
               ElevatedButton(
-                onPressed: () {},
+                onPressed: () {
+                  // Вызываем меню выбора (Камера/Галерея)
+                  showImageSourceActionSheet(context);
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFC8E6C9),
                   elevation: 0,
@@ -86,13 +150,12 @@ class MainMenuScreen extends StatelessWidget {
                     width: 300,
                     height: 300,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFCDD2).withOpacity(0.5), // Бледно-розовый круг
+                      color: const Color(0xFFFFCDD2).withOpacity(0.5),
                       shape: BoxShape.circle,
                     ),
                   ),
                   Column(
                     children: [
-                      // Иконка еды
                       const Icon(Icons.lunch_dining, size: 120, color: Color(0xFF1B5E20)),
                       const SizedBox(height: 20),
                       ElevatedButton(
