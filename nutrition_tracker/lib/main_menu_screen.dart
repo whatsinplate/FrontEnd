@@ -1,179 +1,285 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart'; // Пакет для работы с камерой
-import 'processing_screen.dart'; // Экран загрузки
+import 'package:image_picker/image_picker.dart';
+
+import 'processing_screen.dart';
+import 'profile_screen.dart';
+import 'tracker_screen.dart';
 
 class MainMenuScreen extends StatelessWidget {
   const MainMenuScreen({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    final ImagePicker picker = ImagePicker();
+  Future<void> _pickImage(
+      BuildContext context, {
+        required ImageSource source,
+      }) async {
+    final picker = ImagePicker();
 
-    void showImageSourceActionSheet(BuildContext context) {
-      showModalBottomSheet(
-        context: context,
-        backgroundColor: const Color(0xFFF0F8F0),
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
+    try {
+      final XFile? file = await picker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (file == null) {
+        return;
+      }
+
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ProcessingScreen(imagePath: file.path),
         ),
-        builder: (BuildContext ctx) {
-          return SafeArea(
-            child: Wrap(
-              children: <Widget>[
+      );
+    } catch (_) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Не удалось выбрать фото. Попробуйте ещё раз.',
+            ),
+          ),
+        );
+    }
+  }
+
+  void _showImageSourceSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFFE8F5E9),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.only(
+              left: 24,
+              right: 24,
+              top: 16,
+              bottom: 24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 ListTile(
-                  leading: const Icon(Icons.camera_alt, color: Color(0xFF1B5E20)),
-                  title: const Text('Камера'),
-                  onTap: () async {
-                    Navigator.of(ctx).pop(); // Закрыть меню
-                    // Открыть камеру
-                    final XFile? photo = await picker.pickImage(source: ImageSource.camera);
-                    if (photo != null) {
-                      // Если фото сделано, идем на экран обработки
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => ProcessingScreen(imagePath: photo.path)),
-                      );
-                    }
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.photo_library, color: Color(0xFF1B5E20)),
-                  title: const Text('Галерея'),
-                  onTap: () async {
-                    Navigator.of(ctx).pop(); // Закрыть меню
-                    // Открыть галерею
-                    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-                    if (image != null) {
-                      // Если фото выбрано, идем на экран обработки
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => ProcessingScreen(imagePath: image.path)),
-                      );
-                    }
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.close, color: Colors.red),
-                  title: const Text('Отмена', style: TextStyle(color: Colors.red)),
+                  title: const Center(child: Text('Camera')),
                   onTap: () {
                     Navigator.of(ctx).pop();
+                    _pickImage(context, source: ImageSource.camera);
                   },
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  title: const Center(child: Text('Photo Library')),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _pickImage(context, source: ImageSource.gallery);
+                  },
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  title: const Center(child: Text('Cancel')),
+                  onTap: () => Navigator.of(ctx).pop(),
                 ),
               ],
             ),
-          );
-        },
-      );
-    }
+          ),
+        );
+      },
+    );
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F8F0),
+      backgroundColor: const Color.fromRGBO(236, 255, 228, 1),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Профиль
-              const Row(
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: Color(0xFFC8E6C9),
-                    child: Icon(Icons.person_outline, size: 40, color: Colors.black87),
-                  ),
-                  SizedBox(width: 15),
-                  Text('Профиль', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
-                ],
-              ),
-              const SizedBox(height: 30),
-              
-              // Белая карточка
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))
-                  ],
-                ),
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Что в тарелке?', 
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1B5E20))
-                    ),
-                    SizedBox(height: 5),
-                    Text.rich(
-                      TextSpan(
-                        text: 'Твой удобный счетчик ',
-                        style: TextStyle(fontSize: 16, color: Colors.black87),
-                        children: [
-                          TextSpan(
-                            text: 'КБЖУ',
-                            style: TextStyle(color: Color(0xFF880E4F), fontWeight: FontWeight.bold),
-                          ),
-                        ],
+              Align(
+                alignment: Alignment.centerLeft,
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ProfileScreen(),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 30),
-              
-              // Кнопка "Распознать еду"
-              ElevatedButton(
-                onPressed: () {
-                  // Вызываем меню выбора (Камера/Галерея)
-                  showImageSourceActionSheet(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFC8E6C9),
-                  elevation: 0,
-                  minimumSize: const Size(double.infinity, 60),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
-                child: const Text('Распознать еду', style: TextStyle(fontSize: 18, color: Colors.black87, fontWeight: FontWeight.w600)),
-              ),
-              
-              const Spacer(),
-              
-              // Иллюстрация и кнопка трекера
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  Container(
-                    width: 300,
-                    height: 300,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFCDD2).withOpacity(0.5),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  Column(
+                    );
+                  },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.lunch_dining, size: 120, color: Color(0xFF1B5E20)),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: () {},
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFF48FB1),
-                          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(25),
-                          ),
+                      Container(
+                        width: 72,
+                        height: 72,
+                        decoration: const BoxDecoration(
+                          color: Color.fromRGBO(200, 255, 191, 1),
+                          shape: BoxShape.circle,
                         ),
-                        child: const Text('Трекер КБЖУ', style: TextStyle(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.w600)),
+                        child: const Icon(
+                          Icons.person_outline,
+                          size: 44,
+                          color: Color.fromRGBO(0, 57, 9, 1),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Профиль',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Color.fromRGBO(0, 57, 9, 1),
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
-              const Spacer(),
+
+              const SizedBox(height: 24),
+
+              Container(
+                padding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: const Text(
+                  'Что в тарелке?\nТвой удобный счётчик КБЖУ',
+                  style: TextStyle(
+                    fontSize: 18,
+                    height: 1.4,
+                    color: Color.fromRGBO(0, 57, 9, 1),
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.left,
+                ),
+              ),
+
+              const SizedBox(height: 80),
+
+              SizedBox(
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: () => _showImageSourceSheet(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                    const Color.fromRGBO(188, 240, 180, 1),
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                  ),
+                  child: const Text(
+                    'Распознать еду',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+              ),
+
+              Expanded(
+                child: Center(
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const TrackerScreen(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 320,
+                      height: 320,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color.fromRGBO(
+                            255, 236, 245, 1),
+                        border: Border.all(
+                          color: const Color.fromRGBO(
+                              255, 189, 233, 1),
+                          width: 4,
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 24,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: Center(
+                                child: Image.asset(
+                                  'assets/images/choice_plate.png',
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Expanded(
+                              flex: 1,
+                              child: Align(
+                                alignment: Alignment.bottomCenter,
+                                child: SizedBox(
+                                  width: 160,
+                                  height: 44,
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                          const TrackerScreen(),
+                                        ),
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      elevation: 0,
+                                      backgroundColor:
+                                      const Color.fromRGBO(255, 236, 245,
+                                          1),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                        BorderRadius.circular(24),
+                                        side: const BorderSide(
+                                          color: Color.fromRGBO(
+                                              255, 189, 233, 1),
+                                          width: 2,
+                                        ),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Трекер КБЖУ',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color.fromRGBO(0, 57, 9, 1),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 8),
             ],
           ),
         ),

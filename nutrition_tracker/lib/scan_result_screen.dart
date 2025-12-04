@@ -1,117 +1,263 @@
+// lib/scan_result_screen.dart
+
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'dart:io'; // Нужен для отображения фото с телефона
 
-class ScanResultScreen extends StatelessWidget {
-  // Переменная для хранения пути к фото
+import 'api/backend_api.dart';
+import 'api/api_error.dart';
+import 'main_menu_screen.dart';
+import 'models/scan_meal_result.dart';
+
+class ScanResultScreen extends StatefulWidget {
   final String imagePath;
+  final ScanMealResult result;
 
-  const ScanResultScreen({super.key, required this.imagePath});
+  const ScanResultScreen({
+    super.key,
+    required this.imagePath,
+    required this.result,
+  });
+
+  @override
+  State<ScanResultScreen> createState() => _ScanResultScreenState();
+}
+
+class _ScanResultScreenState extends State<ScanResultScreen> {
+  bool _isSaving = false;
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _onAddToTrackerPressed() async {
+    if (_isSaving) return;
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      await BackendApi.instance.saveMealToTracker(widget.result.mealId);
+
+      if (!mounted) return;
+      _showSnackBar('Блюдо успешно добавлено в трекер.');
+    } on ApiError catch (e) {
+      if (!mounted) return;
+      _showSnackBar(e.uiMessage);
+    } catch (_) {
+      if (!mounted) return;
+      _showSnackBar(
+        'Не удалось сохранить блюдо в трекер. '
+            'Проверьте интернет и попробуйте ещё раз.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final result = widget.result;
+
+    const backgroundColor = Color.fromRGBO(236, 255, 228, 1);
+    const cardColor = Color(0xFFC8E6C9);
+    const darkGreen = Color(0xFF335C22);
+    const mediumGreen = Color.fromRGBO(138, 209, 132, 1);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F8F0),
-      appBar: AppBar(
-        title: const Text('Результаты сканирования', style: TextStyle(color: Color(0xFF1B5E20))),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
+      backgroundColor: backgroundColor,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1. Карточка с результатом
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFC8E6C9), // Зеленый фон карточки
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Center(
-                      child: Text(
-                        'Ребрышки барбекю',
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
-                      ),
-                    ),
-                    const SizedBox(height: 15),
-                    
-                    // Фотография блюда
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: Image.network( // Пока используем тестовую картинку из интернета для красоты, или локальный файл
-                        'https://img.freepik.com/free-photo/grilled-pork-ribs-with-barbecue-sauce_1339-75660.jpg', 
-                        // Если хотите показать реальное фото с камеры, раскомментируйте строки ниже, а Image.network уберите:
-                        // imagePath.isNotEmpty 
-                        //  ? Image.file(File(imagePath), height: 200, width: double.infinity, fit: BoxFit.cover)
-                        //  : Container(height: 200, color: Colors.grey),
-                        height: 200,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    
-                    // Ингредиенты
-                    const Text('Ингредиенты:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    const SizedBox(height: 5),
-                    const Text(
-                      'Свиные ребрышки\nСоус барбекю\nПетрушка\nСоль\nПерец\nПаприка\nЧеснок',
-                      style: TextStyle(fontSize: 14, color: Colors.black87),
-                    ),
-                    const SizedBox(height: 20),
-                    
-                    // КБЖУ
-                    const Text('КБЖУ:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    const SizedBox(height: 5),
-                    const Text(
-                      'Ккал: 1450\nБелки: 115\nЖиры: 90\nУглеводы: 35',
-                      style: TextStyle(fontSize: 14, color: Colors.black87),
-                    ),
-                    
-                    const SizedBox(height: 20),
-                    
-                    // Розовая кнопка "Записать в трекер"
-                    ElevatedButton(
-                      onPressed: () {
-                        // Логика сохранения
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Сохранено в трекер!')));
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFF48FB1),
-                        minimumSize: const Size(double.infinity, 50),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-                      ),
-                      child: const Text('Записать в трекер', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
-                    ),
-                  ],
+              const Text(
+                'Результаты сканирования:',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
+                  color: darkGreen,
                 ),
               ),
-              
+              const SizedBox(height: 16),
+
+              // Карточка с блюдом (скроллится, если контента много)
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: cardColor,
+                      borderRadius: BorderRadius.circular(40),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: Text(
+                            result.mealName.isEmpty
+                                ? 'Блюдо'
+                                : result.mealName,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              color: darkGreen,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(26),
+                          child: Image.file(
+                            File(widget.imagePath),
+                            height: 220,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        const Text(
+                          'Ингредиенты:',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: darkGreen,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        if (result.ingredients.isEmpty)
+                          const Text(
+                            'Не удалось определить ингредиенты.',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: darkGreen,
+                            ),
+                          )
+                        else
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: result.ingredients
+                                .map(
+                                  (ing) => Text(
+                                ing,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  color: darkGreen,
+                                ),
+                              ),
+                            )
+                                .toList(),
+                          ),
+                        const SizedBox(height: 24),
+
+                        const Text(
+                          'КБЖУ:',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: darkGreen,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildMacroLine('Ккал', result.calories),
+                        _buildMacroLine('Белки', result.proteins),
+                        _buildMacroLine('Жиры', result.fats),
+                        _buildMacroLine('Углеводы', result.carbohydrates),
+                        const SizedBox(height: 32),
+
+                        // Кнопка "Записать в трекер" – не на всю ширину
+                        Center(
+                          child: SizedBox(
+                            width: 260,
+                            height: 54,
+                            child: ElevatedButton(
+                              onPressed:
+                              _isSaving ? null : _onAddToTrackerPressed,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: darkGreen,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                              ),
+                              child: _isSaving
+                                  ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  valueColor:
+                                  AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                                  : const Text(
+                                'Записать в трекер',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
               const SizedBox(height: 20),
-              
-              // 2. Нижние кнопки (Переснять, На главную, Повторить)
+
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildSmallButton('Переснять', () {
-                     Navigator.pop(context); // Возврат назад
-                  }),
-                  _buildSmallButton('На главную', () {
-                    // Возврат в самое начало (на главный экран)
-                    Navigator.of(context).popUntil((route) => route.isFirst);
-                  }),
-                  _buildSmallButton('Повторить', () {
-                    // Имитация повтора (можно просто обновить стейт)
-                  }),
+                  Expanded(
+                    child: _buildBottomButton(
+                      'Переснять',
+                          () {
+                        Navigator.of(context).pop();
+                      },
+                      mediumGreen,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildBottomButton(
+                      'На главную',
+                          () {
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                            builder: (_) => const MainMenuScreen(),
+                          ),
+                              (route) => false,
+                        );
+                      },
+                      mediumGreen,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildBottomButton(
+                      'Повторить',
+                          () {
+                        Navigator.of(context).pop();
+                      },
+                      mediumGreen,
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -121,15 +267,41 @@ class ScanResultScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSmallButton(String text, VoidCallback onPressed) {
+  Widget _buildMacroLine(String label, double value) {
+    final textValue = value.isNaN ? '0' : value.toStringAsFixed(0);
+
+    return Text(
+      '$label: $textValue',
+      style: const TextStyle(
+        fontSize: 16,
+        color: Color(0xFF335C22),
+      ),
+    );
+  }
+
+  Widget _buildBottomButton(
+      String text,
+      VoidCallback onPressed,
+      Color backgroundColor,
+      ) {
     return ElevatedButton(
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFFA5D6A7), // Темно-зеленый
-        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: backgroundColor,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(26),
+        ),
       ),
-      child: Text(text, style: const TextStyle(fontSize: 12, color: Colors.black87)),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF003909),
+        ),
+      ),
     );
   }
 }
