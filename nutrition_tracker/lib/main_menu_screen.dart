@@ -17,9 +17,6 @@ class MainMenuScreen extends StatelessWidget {
     try {
       final XFile? file = await picker.pickImage(
         source: source,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 85,
       );
 
       if (file == null) {

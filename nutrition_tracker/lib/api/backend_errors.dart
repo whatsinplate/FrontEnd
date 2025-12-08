@@ -4,7 +4,6 @@ import 'dart:convert';
 
 import 'api_error.dart';
 
-/// Маппинг "сырых" сообщений бэкенда на человекочитаемые.
 String mapBackendMessageToUi(String backendMessage) {
   switch (backendMessage) {
   // auth.py

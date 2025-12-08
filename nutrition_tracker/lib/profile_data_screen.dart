@@ -83,8 +83,7 @@ class _ProfileDataScreenState extends State<ProfileDataScreen> {
     }
   }
 
-  Future<void> _onSavePressed() async {
-    if (_userInfo == null) return;
+  _onSavePressed() async {
     if (!_formKey.currentState!.validate()) return;
     if (_isSaving) return;
 
@@ -94,8 +93,9 @@ class _ProfileDataScreenState extends State<ProfileDataScreen> {
 
     try {
       age = int.parse(_ageController.text.trim());
-      height =
-          double.parse(_heightController.text.trim().replaceAll(',', '.'));
+      height = double.parse(
+        _heightController.text.trim().replaceAll(',', '.'),
+      );
       weight = int.parse(_weightController.text.trim());
     } catch (_) {
       _showSnackBar('Проверьте корректность введённых значений.');
@@ -106,27 +106,16 @@ class _ProfileDataScreenState extends State<ProfileDataScreen> {
       _isSaving = true;
     });
 
-    final updated = _userInfo!.copyWith(
-      age: age,
-      height: height,
-      weight: weight,
-    );
+    final gender = _userInfo?.gender ?? 'M';
+    final goal = _userInfo?.goal ?? 'support_weight';
 
     try {
-      final updated = _userInfo!.copyWith(
-        age: int.parse(_ageController.text.trim()),
-        height: double.parse(
-          _heightController.text.trim().replaceAll(',', '.'),
-        ),
-        weight: int.parse(_weightController.text.trim()),
-      );
-
       await BackendApi.instance.setUserInfo(
-        age: updated.age,
-        gender: updated.gender,
-        height: updated.height,
-        weight: updated.weight,
-        goal: updated.goal,
+        age: age,
+        gender: gender,
+        height: height,
+        weight: weight,
+        goal: goal,
       );
 
       if (!mounted) return;
@@ -148,6 +137,7 @@ class _ProfileDataScreenState extends State<ProfileDataScreen> {
       }
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

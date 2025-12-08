@@ -11,29 +11,41 @@ class AuthStorage {
   static const _keyTokenSavedAt = 'auth_token_saved_at';
 
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  String? _memAuthToken;
+  DateTime? _memTokenSavedAt;
+  String? _memLogin;
+  String? _memPassword;
 
   // ----------------- token -----------------
 
   /// Сохраняем токен + время, когда он был получен.
   Future<void> saveAuthToken(String token) async {
-    await _storage.write(key: _keyAuthToken, value: token);
-    await _storage.write(
-      key: _keyTokenSavedAt,
-      value: DateTime.now().toIso8601String(),
-    );
+    _memAuthToken = token;
+    _memTokenSavedAt = DateTime.now();
+    try {
+      await _storage.write(key: _keyAuthToken, value: token);
+      await _storage.write(
+        key: _keyTokenSavedAt,
+        value: _memTokenSavedAt!.toIso8601String(),
+      );
+    } catch (_) {}
   }
 
-  /// Просто достать токен из стораджа
   Future<String?> getAuthToken() async {
+    if (_memAuthToken != null) return _memAuthToken;
     return _storage.read(key: _keyAuthToken);
   }
 
+
   /// Время, когда токен был сохранён
   Future<DateTime?> getTokenSavedAt() async {
+    if (_memTokenSavedAt != null) return _memTokenSavedAt;
     final raw = await _storage.read(key: _keyTokenSavedAt);
     if (raw == null) return null;
     try {
-      return DateTime.parse(raw);
+      final dt = DateTime.parse(raw);
+      _memTokenSavedAt = dt;
+      return dt;
     } catch (_) {
       return null;
     }
@@ -48,23 +60,25 @@ class AuthStorage {
     return now.difference(savedAt) > ttl;
   }
 
-  Future<void> clearAuthToken() async {
-    await _storage.delete(key: _keyAuthToken);
-    await _storage.delete(key: _keyTokenSavedAt);
-  }
-
   // ----------------- login / password -----------------
 
   Future<void> saveLoginPassword(String login, String password) async {
-    await _storage.write(key: _keyLogin, value: login);
-    await _storage.write(key: _keyPassword, value: password);
+    _memLogin = login;
+    _memPassword = password;
+    try {
+      await _storage.write(key: _keyLogin, value: login);
+      await _storage.write(key: _keyPassword, value: password);
+    } catch (_) {}
   }
 
+
   Future<String?> getLogin() async {
+    if (_memLogin != null) return _memLogin;
     return _storage.read(key: _keyLogin);
   }
 
   Future<String?> getPassword() async {
+    if (_memPassword != null) return _memPassword;
     return _storage.read(key: _keyPassword);
   }
 
@@ -77,10 +91,25 @@ class AuthStorage {
 
   // ----------------- очистка всего -----------------
 
+  Future<void> clearAuthToken() async {
+    _memAuthToken = null;
+    _memTokenSavedAt = null;
+    try {
+      await _storage.delete(key: _keyAuthToken);
+      await _storage.delete(key: _keyTokenSavedAt);
+    } catch (_) {}
+  }
+
   Future<void> clearAll() async {
-    await _storage.delete(key: _keyAuthToken);
-    await _storage.delete(key: _keyTokenSavedAt);
-    await _storage.delete(key: _keyLogin);
-    await _storage.delete(key: _keyPassword);
+    _memAuthToken = null;
+    _memTokenSavedAt = null;
+    _memLogin = null;
+    _memPassword = null;
+    try {
+      await _storage.delete(key: _keyAuthToken);
+      await _storage.delete(key: _keyTokenSavedAt);
+      await _storage.delete(key: _keyLogin);
+      await _storage.delete(key: _keyPassword);
+    } catch (_) {}
   }
 }

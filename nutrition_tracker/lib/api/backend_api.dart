@@ -300,34 +300,81 @@ class BackendApi {
 
     final uri = _buildUri('/ai/scan');
 
-    final response = await _client.post(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(<String, dynamic>{
-        'auth_token': token,
-        'img_base64': imgBase64,
-      }),
-    );
+    http.Response response;
+    try {
+      response = await _client.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(<String, dynamic>{
+          'auth_token': token,
+          'img_base64': imgBase64,
+        }),
+      );
+    } catch (e) {
+      throw _defaultError(
+        'Не удалось обработать фото. Проверьте интернет-соединение и попробуйте ещё раз.',
+      );
+    }
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final mealId = data['meal_id']?.toString() ?? '';
+    Map<String, dynamic>? body;
+    if (response.body.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          body = decoded;
+        }
+      } catch (_) {
+      }
+    }
+
+    // 1) УСПЕХ: 200 + meal_id
+    if (response.statusCode == 200 && body != null) {
+      final mealId = body['meal_id']?.toString() ?? '';
       if (mealId.isEmpty) {
         throw _defaultError('Сервер не вернул идентификатор блюда.');
       }
       return mealId;
     }
 
+    String? backendMessage;
+    final detail = body?['detail'];
+
+    if (detail is Map && detail['message'] is String) {
+      backendMessage = detail['message'] as String;
+    } else if (detail is String) {
+      backendMessage = detail;
+    } else if (body?['message'] is String) {
+      backendMessage = body!['message'] as String;
+    }
+
     if (response.statusCode == 422) {
-      throw _defaultError('На фото не удалось распознать еду.');
+      throw ApiError(
+        statusCode: 422,
+        backendMessage:
+        backendMessage ?? 'The image does not seem to contain food.',
+        uiMessage: 'На фото не удалось распознать еду.',
+      );
     }
 
     if (response.statusCode == 401) {
-      throw _defaultError('Сессия истекла. Войдите заново.');
+      throw ApiError(
+        statusCode: 401,
+        backendMessage: backendMessage ?? 'Token is invalid.',
+        uiMessage: 'Сессия истекла. Войдите заново.',
+      );
     }
 
-    throw _defaultError('Не удалось обработать фото.');
+    throw ApiError(
+      statusCode: response.statusCode,
+      backendMessage: backendMessage ?? 'Failed to scan meal.',
+      uiMessage: backendMessage != null
+          ? 'Ошибка при обработке фото: $backendMessage'
+          : 'Не удалось обработать фото.',
+    );
   }
+
+
+
 
   /// GET /meal/info?auth_token=&meal_id=
   Future<ScanMealResult> getMealInfo(String mealId) async {

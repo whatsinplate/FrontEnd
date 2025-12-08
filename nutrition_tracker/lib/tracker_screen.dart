@@ -88,45 +88,102 @@ class _TrackerApi {
 
     final response = await http.get(uri);
 
-    if (response.statusCode == 200) {
-      return response.bodyBytes;
+    if (response.statusCode != 200) {
+      return null;
     }
 
-    return null;
+    final contentType = response.headers['content-type'] ?? '';
+
+    if (contentType.contains('application/json') ||
+        contentType.contains('text/json')) {
+      try {
+        final decodedJson =
+        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+
+        final String? base64Image =
+        (decodedJson['img_base64'] ??
+            decodedJson['image'] ??
+            decodedJson['image_base64'])
+            ?.toString();
+
+        if (base64Image == null || base64Image.isEmpty) {
+          return null;
+        }
+
+        return base64Decode(base64Image);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    return response.bodyBytes;
   }
+
 
   static Future<String> getRecommendation({
     required String authToken,
     required DateTime date,
   }) async {
     final dateStr =
-        '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+        '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
 
     final uri = _buildUri('/ai/recommendation', {
       'auth_token': authToken,
       'date': dateStr,
     });
 
-    final response = await http.get(uri);
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      return (data['recommendation'] as String?) ?? '';
+    http.Response response;
+    try {
+      response = await http.get(uri);
+    } catch (_) {
+      return 'Рекомендации пока недоступны. Проверьте интернет-соединение.';
     }
 
-    if (response.statusCode == 204 || response.statusCode == 428) {
+    Map<String, dynamic>? bodyJson;
+    if (response.body.isNotEmpty) {
       try {
         final decoded = jsonDecode(response.body);
-        if (decoded is Map && decoded['message'] is String) {
-          return decoded['message'] as String;
+        if (decoded is Map<String, dynamic>) {
+          bodyJson = decoded;
         }
       } catch (_) {}
+    }
+
+    if (response.statusCode == 200 && bodyJson != null) {
+      final rec = bodyJson['recommendation'];
+      if (rec is String && rec.isNotEmpty) {
+        return rec;
+      }
       return 'Рекомендации пока недоступны.';
     }
 
-    throw Exception(
-        'ai/recommendation: HTTP ${response.statusCode} ${response.body}');
+    String? serverMessage;
+    final detail = bodyJson?['detail'];
+    if (detail is Map && detail['message'] is String) {
+      serverMessage = detail['message'] as String;
+    } else if (bodyJson?['message'] is String) {
+      serverMessage = bodyJson!['message'] as String;
+    }
+
+    if (response.statusCode == 204) {
+      return serverMessage ?? 'За выбранный день нет приёмов пищи.';
+    }
+
+    if (response.statusCode == 428) {
+      return serverMessage ?? 'Сначала заполните данные профиля.';
+    }
+
+    if (response.statusCode == 401) {
+      return serverMessage ?? 'Сессия истекла. Войдите заново.';
+    }
+
+    return serverMessage ?? 'Рекомендации пока недоступны.';
   }
+
+
+
 }
 
 enum _TrackerView {
